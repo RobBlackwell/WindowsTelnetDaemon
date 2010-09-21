@@ -3,7 +3,7 @@ TelnetD
 
 A rudimentary telnet server daemon for Windows.
 
-Usage: telnetd.exe <address> <port> [password]
+Usage: telnetd.exe address port [password]
 
 For example, on your server, you might run telnetd.exe 127.0.0.1 8080
 
