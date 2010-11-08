@@ -103,77 +103,85 @@ namespace TelnetD
 
         public void Connect()
         {
-            Banner();
-
-            if ((password !=null) && !Login())
-            {
-                // Login failed
-                tcpClient.Close();
-                return;
-            }
-
-            // Start a new cmd.exe shell and connect up it's input and 
-            // output to the TCPClient
-
-            string command = "cmd.exe";
-
-            ProcessStartInfo startInfo = new ProcessStartInfo(command)
-            {
-                RedirectStandardInput = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-
-            process = new Process()
-            {
-                StartInfo = startInfo
-            };
- 
-            process.Start();
-
-            Thread outputThread = new Thread(new ThreadStart(CopyStandardOutput));
-            outputThread.Start();
-
-            Thread errorThread = new Thread(new ThreadStart(CopyStandardError));
-            errorThread.Start();
-
-            byte[] buffer = new byte[256];
-
-            const int CONTROL_D = 4;
-
             try
             {
-                int i;
-                while ((i = networkStream.Read(buffer, 0, buffer.Length)) > 0)
+                Banner();
+
+                if ((password != null) && !Login())
                 {
-                    if ((i > 0) && (buffer[0] == CONTROL_D))
-                    {
-                        outputThread.Abort();
-                        errorThread.Abort();
-                        process.Close();
-                        tcpClient.Close();
-
-                        Console.WriteLine("Connection {0} closed", Thread.CurrentThread.ManagedThreadId);
-
-                        return;
-                    }
-                    process.StandardInput.Write(Encoding.ASCII.GetChars(buffer), 0, i);
+                    // Login failed
+                    tcpClient.Close();
+                    return;
                 }
+
+                // Start a new cmd.exe shell and connect up it's input and 
+                // output to the TCPClient
+
+                string command = "cmd.exe";
+
+                ProcessStartInfo startInfo = new ProcessStartInfo(command)
+                {
+                    RedirectStandardInput = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                };
+
+                process = new Process()
+                {
+                    StartInfo = startInfo
+                };
+
+                process.Start();
+
+                Thread outputThread = new Thread(new ThreadStart(CopyStandardOutput));
+                outputThread.Start();
+
+                Thread errorThread = new Thread(new ThreadStart(CopyStandardError));
+                errorThread.Start();
+
+                byte[] buffer = new byte[256];
+
+                const int CONTROL_D = 4;
+
+                try
+                {
+                    int i;
+                    while ((i = networkStream.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        if ((i > 0) && (buffer[0] == CONTROL_D))
+                        {
+                            outputThread.Abort();
+                            errorThread.Abort();
+                            process.Close();
+                            tcpClient.Close();
+
+                            Console.WriteLine("Connection {0} closed", Thread.CurrentThread.ManagedThreadId);
+
+                            return;
+                        }
+                        process.StandardInput.Write(Encoding.ASCII.GetChars(buffer), 0, i);
+                    }
+                }
+                catch (Exception)
+                {
+                    // Clean up
+                    outputThread.Abort();
+                    errorThread.Abort();
+                    process.Close();
+                    tcpClient.Close();
+                    throw;
+                }
+
             }
             catch (Exception ex)
             {
-                // catch any errors on this thread, print them out, and shut down the thread so any 
-                // other concurrent threads can continue and so the worker role doesn't need to re-start
+                // Catch any errors on this thread, print them out, and shut down the thread so any 
+                // other concurrent threads can continue without the process dying.
                 Console.WriteLine("Error on Connection {0}", Thread.CurrentThread.ManagedThreadId);
                 Console.WriteLine(ex.ToString());
-                outputThread.Abort();
-                errorThread.Abort();
-                process.Close();
-                tcpClient.Close();
             }
-
         }
     }
 }
