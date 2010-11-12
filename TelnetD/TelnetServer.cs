@@ -31,9 +31,18 @@ namespace TelnetD
         private NetworkStream networkStream;
         private string password;
 
+
+        // http://www.netframeworkdev.com/net-framework-networking-communication/tcp-keepalive-settings-problem-44661.shtml
+        // 1-->For Enabling TCPKeepAlive,30 secs interval,1 sec duration after sending tcpkeepalive
+        byte[] inValue = new byte[] { 1, 0, 0, 0, 48, 117, 0, 0, 1, 0, 0, 0 };
+        byte[] outvalue = new byte[10];
+
         public TelnetServer(TcpClient tcpClient, string password)
         {
             this.tcpClient = tcpClient;
+            this.tcpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+            this.tcpClient.Client.IOControl(IOControlCode.KeepAliveValues, inValue, outvalue);
+
             networkStream = tcpClient.GetStream();
             this.password = password;
         }
@@ -135,6 +144,8 @@ namespace TelnetD
 
                 process.Start();
 
+                //Console.WriteLine("Process id={0} started", process.Id);
+
                 Thread outputThread = new Thread(new ThreadStart(CopyStandardOutput));
                 outputThread.Start();
 
@@ -154,7 +165,8 @@ namespace TelnetD
                         {
                             outputThread.Abort();
                             errorThread.Abort();
-                            process.Close();
+                            //process.Close();
+                            process.Kill();
                             tcpClient.Close();
 
                             Console.WriteLine("Connection {0} closed", Thread.CurrentThread.ManagedThreadId);
@@ -169,8 +181,11 @@ namespace TelnetD
                     // Clean up
                     outputThread.Abort();
                     errorThread.Abort();
+                    //process.Close();
+                    //Console.WriteLine("Killing proces id={0}", process.Id);
                     process.Kill();
                     tcpClient.Close();
+                    Console.WriteLine("Clean up on Connection {0}", Thread.CurrentThread.ManagedThreadId);
                     throw;
                 }
 
