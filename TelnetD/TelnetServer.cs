@@ -169,7 +169,7 @@ namespace TelnetD
                     // Clean up
                     outputThread.Abort();
                     errorThread.Abort();
-                    process.Close();
+                    process.Kill();
                     tcpClient.Close();
                     throw;
                 }
